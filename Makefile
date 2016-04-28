@@ -499,8 +499,8 @@ else ifdef ESP8266_BOARD
 EMBEDDED=1
 USE_NET=1
 USE_TELNET=1
+USE_GRAPHICS=1
 USE_CRYPTO=1
-#USE_GRAPHICS=1
 BOARD=ESP8266_BOARD
 # Enable link-time optimisations (inlining across files), use -Os 'cause else we end up with
 # too large a firmware (-Os is -O2 without optimizations that increase code size)
@@ -675,7 +675,7 @@ endif
 ifdef DEBUG
 #OPTIMIZEFLAGS=-Os -g
  ifeq ($(FAMILY),ESP8266)
-  OPTIMIZEFLAGS=-g -Os
+  OPTIMIZEFLAGS=-g -Os -std=gnu11 -fgnu89-inline -Wl,--allow-multiple-definition
  else
   OPTIMIZEFLAGS=-g
  endif
@@ -1034,10 +1034,6 @@ libs/crypto/mbedtls/library/ssl_tls.c \
 libs/crypto/mbedtls/library/ssl_srv.c \
 libs/crypto/mbedtls/library/x509.c \
 libs/crypto/mbedtls/library/x509_crt.c
-else
-ifndef ESP8266_BOARD
- DEFINES += -DUSE_AES=1
-endif
 endif
 ifdef USE_AES
   DEFINES += -DUSE_AES
@@ -1601,6 +1597,8 @@ SOURCES += targets/esp8266/uart.c \
 	targets/esp8266/jshardware.c \
 	targets/esp8266/i2c_master.c \
 	targets/esp8266/esp8266_board_utils.c \
+	targets/esp8266/gdbstub.c \
+	targets/esp8266/gdbstub-entry.S \
 	libs/network/esp8266/network_esp8266.c
 
 # The tool used for building the firmware and flashing
@@ -1783,7 +1781,7 @@ $(USER2_BIN): $(USER2_ELF) $(USER1_BIN)
 $(ESP_ZIP): $(USER1_BIN) $(USER2_BIN)
 	$(Q)rm -rf build/$(basename $(ESP_ZIP))
 	$(Q)mkdir -p build/$(basename $(ESP_ZIP))
-	$(Q)cp $(USER1_BIN) $(USER2_BIN) $(USER1_ELF) scripts/wiflash $(BLANK) \
+	$(Q)cp $(USER1_BIN) $(USER2_BIN) scripts/wiflash.sh $(BLANK) \
 	  $(INIT_DATA) $(BOOTLOADER) targets/esp8266/README_flash.txt \
 	  build/$(basename $(ESP_ZIP))
 	$(Q)tar -C build -zcf $(ESP_ZIP) ./$(basename $(ESP_ZIP))
@@ -1801,8 +1799,8 @@ $(ESP_COMBINED512): $(USER1_BIN) $(USER2_BIN)
 # IMPORTANT: this only works if DISABLE_LTO is defined, e.g. `DISABLE_LTO=1 make`
 topstrings: $(PARTIAL)
 	$(Q)for f in `find . -name \*.o`; do \
-	  str=$$($(OBJDUMP) -j .rodata.str1.4 -h $$f 2>/dev/null | \
-	    egrep -o 'rodata.str1.4 [0-9a-f]+' | \
+	  str=$$($(OBJDUMP) -j .rodata.str1.1 -j .rodata.str1.4 -h $$f 2>/dev/null | \
+	    egrep -o 'rodata.str1.. [0-9a-f]+' | \
 	    awk $$(expr match "$$(awk --version)" "GNU.*" >/dev/null && echo --non-decimal-data) \
 	      -e '{printf "%d\n", ("0x" $$2);}'); \
 	  [ "$$str" ] && echo "$$str $$f"; \
@@ -1810,7 +1808,21 @@ topstrings: $(PARTIAL)
 	sort -rn >topstrings
 	$(Q)echo "Top 20 from ./topstrings:"
 	$(Q)head -20 topstrings
-	$(Q)echo "To get details: $(OBJDUMP) -j .rodata.str1.4 -s src/FILENAME.o"
+	$(Q)echo "To get details: $(OBJDUMP) -j .rodata.str1.1 -j .rodata.str1.4 -s src/FILENAME.o"
+
+# Same as topstrings but consider all read-only data
+topreadonly: $(PARTIAL)
+	$(Q)for f in `find . -name \*.o`; do \
+	  str=$$($(OBJDUMP) -j .rodata -h $$f 2>/dev/null | \
+	    egrep -o 'rodata +[0-9a-f]+' | \
+	    awk $$(expr match "$$(awk --version)" "GNU.*" >/dev/null && echo --non-decimal-data) \
+	      -e '{printf "%d\n", ("0x" $$2);}'); \
+	  [ "$$str" ] && echo "$$str $$f"; \
+	done | \
+	sort -rn >topreadonly
+	$(Q)echo "Top 20 from ./topreadonly:"
+	$(Q)head -20 topreadonly
+	$(Q)echo "To get details: $(OBJDUMP) -j .rodata -s src/FILENAME.o"
 
 
 flash: all $(USER1_BIN) $(USER2_BIN)
@@ -1830,7 +1842,7 @@ wiflash: all $(USER1_BIN) $(USER2_BIN)
 ifndef ESPHOSTNAME
 	$(error "In order to flash over wifi, we need to have the ESPHOSTNAME variable defined")
 endif
-	./scripts/wiflash $(ESPHOSTNAME) $(USER1_BIN) $(USER2_BIN)
+	./scripts/wiflash.sh $(ESPHOSTNAME) $(USER1_BIN) $(USER2_BIN)
 
 #else ifdef WICED
 #
