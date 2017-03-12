@@ -44,6 +44,7 @@ LDFLAGS += -L$(ESP_IDF_PATH)/ld \
 -L$(ESP_APP_TEMPLATE_PATH)/build/newlib \
 -L$(ESP_APP_TEMPLATE_PATH)/build/wpa_supplicant \
 -L$(ESP_APP_TEMPLATE_PATH)/build/ethernet \
+-L$(ESP_APP_TEMPLATE_PATH)/build/app_update \
 -lgcc
 ESPTOOL?=
 INCLUDE+=\
@@ -98,5 +99,6 @@ $(ESP_IDF_PATH)/components/esp32/libhal.a  \
 -lnewlib \
 -lcoexist \
 -lethernet \
+-lapp_update \
 -lstdc++ \
 -lgcc

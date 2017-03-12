@@ -15,6 +15,7 @@
  
 #include "jswrap_esp32.h"
 #include "jshardwareAnalog.h"
+#include "app_update/include/esp_ota_ops.h"
 
 #include "esp_system.h"
 #include "esp_log.h"
@@ -60,6 +61,36 @@ void jswrap_ESP32_reboot() {
 }
 Returns an object that contains details about the state of the ESP32 with the following fields:
 
+* `sdkVersion`   - Version of the esp-idf SDK.
+* `freeHeap`     - Amount of free heap in bytes.
+
+
+*/
+JsVar *jswrap_ESP32_getState() {
+  // Create a new variable and populate it with the properties of the ESP32 that we
+  // wish to return.
+  JsVar *esp32State = jsvNewObject();
+  jsvObjectSetChildAndUnLock(esp32State, "sdkVersion",   jsvNewFromString(esp_get_idf_version()));
+  jsvObjectSetChildAndUnLock(esp32State, "partitionBoot",   jsvNewFromString( esp_ota_get_boot_partition()->label));
+  jsvObjectSetChildAndUnLock(esp32State, "freeHeap",     jsvNewFromInteger(esp_get_free_heap_size()));
+  #ifdef ESP32_OTA
+  // Not in esp-ief v2.0-rc1 - coming next release
+  //jsvObjectSetChildAndUnLock(esp32State, "partitionRunning",   jsvNewFromString( esp_ota_get_running_partition()->label));
+  //jsvObjectSetChildAndUnLock(esp32State, "partitionNext",   jsvNewFromString( esp_ota_get_next_update_partition()->label));
+  #endif
+  
+  return esp32State;
+} // End of jswrap_ESP32_getState
+
+/*JSON{
+  "type"     : "staticmethod",
+  "class"    : "ESP32",
+  "name"     : "setNextBootPartition",
+  "generate" : "jswrap_ESP32_setNextBootPartition",
+  "return"   : ["JsVar", "The state of the ESP32"]
+}
+Returns an object that contains details next partition to boot into:
+
 * `sdkVersion`   - Version of the SDK.
 * `cpuFrequency` - CPU operating frequency in Mhz.
 * `freeHeap`     - Amount of free heap in bytes.
@@ -69,17 +100,21 @@ Returns an object that contains details about the state of the ESP32 with the fo
 * `flashChip`    - Type of flash chip as string with manufacturer & chip, ex: '0xEF 0x4016`
 
 */
-JsVar *jswrap_ESP32_getState() {
-  // Create a new variable and populate it with the properties of the ESP32 that we
-  // wish to return.
+JsVar *jswrap_ESP32_setNextBootPartition() {
   JsVar *esp32State = jsvNewObject();
-  // system_get_sdk_version() - is deprecated , need to find alternative
-  jsvObjectSetChildAndUnLock(esp32State, "sdkVersion",   jsvNewFromString("1.0 2016-12-03"));
-  //jsvObjectSetChildAndUnLock(esp32State, "cpuFrequency", jsvNewFromInteger(system_get_cpu_freq()));
-  jsvObjectSetChildAndUnLock(esp32State, "freeHeap",     jsvNewFromInteger(esp_get_free_heap_size()));
+  esp_partition_t * partition=esp_ota_get_boot_partition();
+  jsvObjectSetChildAndUnLock(esp32State, "partitionBoot",   jsvNewFromString( esp_ota_get_boot_partition()->label));
+  jsvObjectSetChildAndUnLock(esp32State, "addr",     jsvNewFromInteger(partition->address));
+  jsvObjectSetChildAndUnLock(esp32State, "size",     jsvNewFromInteger(partition->size));
+  #ifdef ESP32_OTA
+  // Not implemented yet as api not available in 2.0 rc1
+  //jsvObjectSetChildAndUnLock(esp32State, "partitionRunning",   jsvNewFromString( esp_ota_get_running_partition()->label));
+  //jsvObjectSetChildAndUnLock(esp32State, "partitionNext",   jsvNewFromString( esp_ota_get_next_update_partition()->label));
+  //var err=esp_ota_set_boot_partition( esp_ota_get_next_update_partition() );
+  //jsWarn( "Set next boot %d", err );
+  #endif
   return esp32State;
 } // End of jswrap_ESP32_getState
-
 
 /*JSON{
   "type"     : "staticmethod",

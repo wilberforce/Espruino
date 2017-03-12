@@ -13,7 +13,7 @@
  * Contains ESP32 board specific function definitions.
  * ----------------------------------------------------------------------------
  */
-#ifndef TARGETS_ES32_JSWRAP_ESP32_H_
+#ifndef TARGETS_ESP32_JSWRAP_ESP32_H_
 #define TARGETS_ESP32_JSWRAP_ESP32_H_
 #include "jsvar.h"
 #include "jspin.h"
@@ -23,4 +23,7 @@ JsVar *jswrap_ESP32_getState();
 void   jswrap_ESP32_setLogLevel(JsVar *jsTagToSet, JsVar *jsLogLevel);
 void   jswrap_ESP32_reboot();
 void   jswrap_ESP32_setAtten(Pin pin,int atten);
+#ifdef ESP32_OTA
+JsVar *jswrap_ESP32_setNextBootPartition();
+#endif 
 #endif /* TARGETS_ESP32_JSWRAP_ESP32_H_ */
