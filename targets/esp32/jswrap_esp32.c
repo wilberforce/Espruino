@@ -73,6 +73,10 @@ JsVar *jswrap_ESP32_getState() {
   JsVar *esp32State = jsvNewObject();
   jsvObjectSetChildAndUnLock(esp32State, "sdkVersion",   jsvNewFromString(esp_get_idf_version()));
   jsvObjectSetChildAndUnLock(esp32State, "freeHeap",     jsvNewFromInteger(esp_get_free_heap_size()));
+  //esp_partition_t * partition=esp_ota_get_boot_partition();
+  //jsvObjectSetChildAndUnLock(esp32State, "addr",     jsvNewFromInteger(partition->address));
+  //jsvObjectSetChildAndUnLock(esp32State, "partitionBoot", jsvNewFromString( partition->label));
+  //jsvObjectSetChildAndUnLock(esp32State, "addr",     jsvNewFromInteger(partition->address));
   //jsvObjectSetChildAndUnLock(esp32State, "partitionBoot",   jsvNewFromString( esp_ota_get_boot_partition()->label));
   #ifdef ESP32_OTA
   // Not in esp-ief v2.0-rc1 - coming next release
@@ -82,36 +86,6 @@ JsVar *jswrap_ESP32_getState() {
   
   return esp32State;
 } // End of jswrap_ESP32_getState
-
-#ifdef ESP32_OTA
-#endif
-/*JSON{
-  "type"     : "staticmethod",
-  "class"    : "ESP32",
-  "name"     : "setNextBootPartition",
-  "generate" : "jswrap_ESP32_setNextBootPartition",
-  "return"   : ["JsVar", "The state of the ESP32"]
-}
-Returns an object that contains details next partition to boot into:
-
-*/
-JsVar *jswrap_ESP32_setNextBootPartition() {
-  JsVar *esp32State = jsvNewObject();
-  esp_partition_t * partition=esp_ota_get_boot_partition();
-  jsvObjectSetChildAndUnLock(esp32State, "partitionBoot",   jsvNewFromString( esp_ota_get_boot_partition()->label));
-  jsvObjectSetChildAndUnLock(esp32State, "addr",     jsvNewFromInteger(partition->address));
-  jsvObjectSetChildAndUnLock(esp32State, "size",     jsvNewFromInteger(partition->size));
-
-  // Not implemented yet as api not available in 2.0 rc1
-  jsvObjectSetChildAndUnLock(esp32State, "partitionRunning",   jsvNewFromString( esp_ota_get_running_partition()->label));
-  jsvObjectSetChildAndUnLock(esp32State, "partitionNext",   jsvNewFromString( esp_ota_get_next_update_partition(NULL)->label));
-  // Link error: undefined reference to `esp_image_basic_verify'
-  //int err=esp_ota_set_boot_partition( esp_ota_get_next_update_partition(NULL) );
-  //jsWarn( "Set next boot %d", err );
-
-  return esp32State;
-} // End of jswrap_ESP32_setNextBootPartition
-
 
 /*JSON{
   "type"     : "staticmethod",
@@ -169,91 +143,3 @@ void jswrap_ESP32_setLogLevel(JsVar *jsTagToSet, JsVar *jsLogLevel) {
   ESP_LOGD(tag, "<< jswrap_ESP32_setLogLevel");
   return;
 } // End of jswrap_ESP32_setLogLevel
-
-
-#ifdef ESP32_NVS
-/*JSON{
-  "type"     : "staticmethod",
-  "class"    : "ESP32",
-  "name"     : "nvsSet",
-  "generate" : "jswrap_ESP32_nvsSet",
-  "params"   : [
-   ["namespace", "JsVar", "The namespace to save to"],
-   ["obj", "JsVar", "objject to persist"]
-   ]
-}
-Returns an object
-*/
-void jswrap_ESP32_nvsSet(JsVar *namespace, JsVar *obj) {
-  char tagToSetStr[20];
-
-  jsWarn(">> jswrap_ESP32_nvsSet");
-  // TODO: Add guards for invalid parameters. max length here?
-  jsvGetString(namespace, tagToSetStr, sizeof(tagToSetStr));
-  nvs_handle my_handle;
-  esp_err_t err;
-  // Open
-    printf("Opening Non-Volatile Storage (NVS) ... ");
-    err = nvs_open("storage", NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        printf("Error (%d) opening NVS!\n", err);
-	} else {
-	err = nvs_set_i32(my_handle, tagToSetStr, jsvGetInteger(obj));
-      printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-	printf("Committing updates in NVS ... ");
-        err = nvs_commit(my_handle);
-        printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-
-        // Close
-        nvs_close(my_handle);
-	}
-	
-  jsWarn("<< jswrap_ESP32_nvsSet %s",tagToSetStr);
-  return;
-} // End of jswrap_ESP32_nvsSet
-
-/*JSON{
-  "type"     : "staticmethod",
-  "class"    : "ESP32",
-  "name"     : "nvsGet",
-  "generate" : "jswrap_ESP32_nvsGet",
-  "params"   : [
-   ["namespace", "JsVar", "The namespace to recover"]
-   ],
-  "return"   : ["JsVar", "The recovered object"]
-}
-Returns an object
-*/
-JsVar *jswrap_ESP32_nvsGet(JsVar *namespace) {
-  JsVar *obj = jsvNewObject();
-  int32_t i=0;
-  char tagToSetStr[20];
-  
-  jsvGetString(namespace, tagToSetStr, sizeof(tagToSetStr));
-  nvs_handle my_handle;
-  esp_err_t err;
-  // Open
-    printf("Opening Non-Volatile Storage (NVS) ... ");
-    err = nvs_open("storage", NVS_READWRITE, &my_handle);
-    if (err != ESP_OK) {
-        printf("Error (%d) opening NVS!\n", err);
-	} else {
-	err = nvs_get_i32(my_handle, tagToSetStr, &i);
-      printf((err != ESP_OK) ? "Failed!\n" : "Done\n");
-
-
-        // Close
-        nvs_close(my_handle);
-	}  
-  jsvObjectSetChildAndUnLock(obj, tagToSetStr, jsvNewFromInteger(i));
-  return obj;
-} // End of jswrap_ESP32_nvsGet
-
-/*
-
->ESP32.nvsGet('bob');
-={ "namespace": 99 }
-ESP32.nvsSet('bob',77);
-
-*/
-#endif

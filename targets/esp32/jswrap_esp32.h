@@ -23,12 +23,7 @@ JsVar *jswrap_ESP32_getState();
 void   jswrap_ESP32_setLogLevel(JsVar *jsTagToSet, JsVar *jsLogLevel);
 void   jswrap_ESP32_reboot();
 void   jswrap_ESP32_setAtten(Pin pin,int atten);
-
-JsVar *jswrap_ESP32_setNextBootPartition();
 #ifdef ESP32_OTA
-#endif 
-#ifdef ESP32_NVS
-JsVar *jswrap_ESP32_nvsGet(JsVar *namespace);
-void jswrap_ESP32_nvsSet(JsVar *namespace, JsVar *obj);
+JsVar *jswrap_ESP32_getNextBootPartition();
 #endif 
 #endif /* TARGETS_ESP32_JSWRAP_ESP32_H_ */
